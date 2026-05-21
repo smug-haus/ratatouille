@@ -126,7 +126,13 @@ defmodule Ratatouille.Renderer.Box do
         },
         %Position{x: x, y: y}
       ) do
-    x in x1..x2 && y in y1..y2
+    # Guard against negative-step ranges that arise when a label's content
+    # is wider than its enclosing box (x2 < x1). Using explicit min/max
+    # comparisons avoids the ArgumentError raised by negative-step ranges
+    # in `in/2` before Elixir 1.12, and is correct at every Elixir version.
+    # Fixes the Box.contains?/2 crash reported in tau#334 / tau#190.
+    x >= min(x1, x2) and x <= max(x1, x2) and
+      y >= min(y1, y2) and y <= max(y1, y2)
   end
 
   def from_dimensions(width, height, origin \\ %Position{x: 0, y: 0}) do
