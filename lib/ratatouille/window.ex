@@ -136,12 +136,26 @@ defmodule Ratatouille.Window do
     end
   end
 
+  # CSI ?2026h / ?2026l — Synchronized Output (DECSET 2026).
+  # Terminals that honour these sequences display the frame atomically,
+  # eliminating visible tearing during streaming. Terminals that do not
+  # honour them silently ignore the sequences; output is correct but may
+  # flicker. No capability detection is performed (best-effort).
+  @sync_start "\e[?2026h"
+  @sync_end "\e[?2026l"
+
   defp render_view(bindings, view) do
-    with empty_canvas <- canvas(bindings),
-         {:ok, filled_canvas} <- Renderer.render(empty_canvas, view),
-         :ok <- Canvas.render_to_termbox(bindings, filled_canvas) do
-      :ok = bindings.present()
-    end
+    :io.put_chars(:standard_io, @sync_start)
+
+    result =
+      with empty_canvas <- canvas(bindings),
+           {:ok, filled_canvas} <- Renderer.render(empty_canvas, view),
+           :ok <- Canvas.render_to_termbox(bindings, filled_canvas) do
+        :ok = bindings.present()
+      end
+
+    :io.put_chars(:standard_io, @sync_end)
+    result
   end
 
   defp canvas(bindings) do
